@@ -1,0 +1,200 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>CRC Calorie Deficit Challenge — TDEE Calculator</title>
+<style>
+  * { box-sizing: border-box; }
+  body {
+    font-family: Arial, Helvetica, sans-serif;
+    background: #F5F4F0;
+    margin: 0;
+    padding: 24px 16px;
+    display: flex;
+    justify-content: center;
+  }
+  .card {
+    background: #FFFFFF;
+    border-radius: 16px;
+    padding: 28px 24px;
+    max-width: 420px;
+    width: 100%;
+    box-shadow: 0 2px 10px rgba(0,0,0,0.08);
+  }
+  h1 {
+    font-size: 18px;
+    color: #C8000A;
+    margin: 0 0 4px;
+  }
+  p.sub {
+    font-size: 13px;
+    color: #666;
+    margin: 0 0 20px;
+  }
+  .gender-row {
+    display: flex;
+    gap: 10px;
+    margin-bottom: 18px;
+  }
+  .gender-btn {
+    flex: 1;
+    padding: 10px;
+    border: 1.5px solid #DDD;
+    border-radius: 8px;
+    background: #FAFAFA;
+    font-size: 14px;
+    cursor: pointer;
+    transition: border-color 0.15s, background 0.15s;
+  }
+  .gender-btn.active {
+    border-color: #C8000A;
+    background: #FDEAEA;
+    color: #C8000A;
+    font-weight: bold;
+  }
+  label {
+    display: block;
+    font-size: 13px;
+    color: #555;
+    margin: 14px 0 4px;
+  }
+  input[type=number] {
+    width: 100%;
+    padding: 10px;
+    font-size: 15px;
+    border: 1.5px solid #DDD;
+    border-radius: 8px;
+  }
+  input[type=number]:focus {
+    outline: none;
+    border-color: #C8000A;
+  }
+  .error {
+    color: #C8000A;
+    font-size: 13px;
+    margin-top: 8px;
+    display: none;
+  }
+  .results {
+    margin-top: 22px;
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 12px;
+  }
+  .result-box {
+    border-radius: 10px;
+    padding: 14px 16px;
+  }
+  .result-box .label {
+    font-size: 12px;
+    margin: 0 0 4px;
+    font-weight: bold;
+  }
+  .result-box .value {
+    font-size: 22px;
+    font-weight: bold;
+    margin: 0;
+  }
+  .tdee { background: #F0F0F0; }
+  .tdee .label, .tdee .value { color: #333; }
+  .deficit { background: #E6F1FB; }
+  .deficit .label, .deficit .value { color: #0C447C; }
+  .protein { background: #EAF3DE; }
+  .protein .label, .protein .value { color: #27500A; }
+  footer {
+    margin-top: 20px;
+    font-size: 11px;
+    color: #999;
+    text-align: center;
+  }
+</style>
+</head>
+<body>
+<div class="card">
+  <h1>CRC Calorie Deficit Challenge</h1>
+  <p class="sub">กรอกข้อมูลเพื่อดู TDEE, เป้าหมายแคลอรี่ และโปรตีนต่อวัน (คำนวณจาก activity level: Light)</p>
+
+  <div class="gender-row">
+    <button class="gender-btn active" id="male-btn" type="button">Male</button>
+    <button class="gender-btn" id="female-btn" type="button">Female</button>
+  </div>
+
+  <label for="weight">น้ำหนัก (kg)</label>
+  <input type="number" id="weight" placeholder="70" />
+
+  <label for="height">ส่วนสูง (cm)</label>
+  <input type="number" id="height" placeholder="175" />
+
+  <label for="age">อายุ</label>
+  <input type="number" id="age" placeholder="36" />
+
+  <div class="error" id="error">กรุณากรอกน้ำหนัก ส่วนสูง และอายุ ให้ถูกต้อง</div>
+
+  <div class="results">
+    <div class="result-box tdee">
+      <p class="label">TDEE (Light activity)</p>
+      <p class="value" id="tdee-out">—</p>
+    </div>
+    <div class="result-box deficit">
+      <p class="label">Deficit Target (TDEE −15%)</p>
+      <p class="value" id="deficit-out">—</p>
+    </div>
+    <div class="result-box protein">
+      <p class="label">Protein Target (1.5g × น้ำหนักตัว)</p>
+      <p class="value" id="protein-out">—</p>
+    </div>
+  </div>
+
+  <footer>Central Retail Corporation</footer>
+</div>
+
+<script>
+  let gender = "Male";
+  const maleBtn = document.getElementById("male-btn");
+  const femaleBtn = document.getElementById("female-btn");
+  const weightEl = document.getElementById("weight");
+  const heightEl = document.getElementById("height");
+  const ageEl = document.getElementById("age");
+  const errEl = document.getElementById("error");
+  const tdeeOut = document.getElementById("tdee-out");
+  const deficitOut = document.getElementById("deficit-out");
+  const proteinOut = document.getElementById("protein-out");
+
+  function setGender(g) {
+    gender = g;
+    maleBtn.classList.toggle("active", g === "Male");
+    femaleBtn.classList.toggle("active", g === "Female");
+    calc();
+  }
+  maleBtn.addEventListener("click", () => setGender("Male"));
+  femaleBtn.addEventListener("click", () => setGender("Female"));
+
+  function calc() {
+    const w = parseFloat(weightEl.value);
+    const h = parseFloat(heightEl.value);
+    const a = parseFloat(ageEl.value);
+    if (!w || !h || !a || w <= 0 || h <= 0 || a <= 0) {
+      errEl.style.display = (weightEl.value || heightEl.value || ageEl.value) ? "block" : "none";
+      tdeeOut.textContent = "—";
+      deficitOut.textContent = "—";
+      proteinOut.textContent = "—";
+      return;
+    }
+    errEl.style.display = "none";
+    let bmr = gender === "Male"
+      ? 10 * w + 6.25 * h - 5 * a + 5
+      : 10 * w + 6.25 * h - 5 * a - 161;
+    const tdee = bmr * 1.375;
+    const deficit = tdee * 0.85;
+    const protein = w * 1.5;
+    tdeeOut.textContent = Math.round(tdee).toLocaleString() + " kcal";
+    deficitOut.textContent = Math.round(deficit).toLocaleString() + " kcal";
+    proteinOut.textContent = Math.round(protein).toLocaleString() + " g";
+  }
+
+  [weightEl, heightEl, ageEl].forEach(el => el.addEventListener("input", calc));
+  setGender("Male");
+</script>
+</body>
+</html>
